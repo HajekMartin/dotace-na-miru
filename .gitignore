@@ -34,6 +34,14 @@ yarn-error.log*
 .env*
 !.env.example
 
+# terraform
+infra/terraform.tfvars
+infra/.terraform/
+infra/terraform.tfstate
+infra/terraform.tfstate.backup
+infra/*.tfstate
+infra/*.tfstate.*
+
 # vercel
 .vercel
 

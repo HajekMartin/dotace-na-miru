@@ -1,0 +1,12 @@
+vercel_api_token = "vercel_api_token_here"
+
+vercel_project_name = "dotace-na-miru"
+git_provider        = "github"
+git_repository      = "your-github-user/dotace-na-miru"
+
+buffer_access_token    = "buffer_access_token_here"
+buffer_organization_id = "buffer_organization_id_here"
+buffer_channel_id      = "buffer_channel_id_here"
+
+make_post_webhook_url    = "make_create_post_webhook_url_here"
+make_metrics_webhook_url = "make_fetch_metrics_webhook_url_here"
