@@ -21,6 +21,12 @@ variable "git_repository" {
   type        = string
 }
 
+variable "production_git_ref" {
+  description = "Git branch or ref to deploy to production."
+  type        = string
+  default     = "main"
+}
+
 variable "buffer_access_token" {
   description = "Buffer API access token."
   type        = string
