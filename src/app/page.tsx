@@ -60,6 +60,11 @@ function prettyJson(value: unknown): string {
   return JSON.stringify(value ?? null, null, 2);
 }
 
+const modeLabels: Record<ExecutionMode, string> = {
+  direct: "Direct Buffer API",
+  orchestrated: "Make orchestration",
+};
+
 export default function Home() {
   const [mode, setMode] = useState<ExecutionMode>("direct");
   const [title, setTitle] = useState("");
@@ -159,14 +164,14 @@ export default function Home() {
         <header className="flex flex-col gap-2 border-b border-[#d9ded2] pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-normal text-[#4c675b]">
-              Candidate assignment
+              Candidate Assignment
             </p>
             <h1 className="text-3xl font-semibold tracking-normal text-[#151719]">
-              Buffer Direct API
+              Buffer Direct API + Make Orchestration
             </h1>
           </div>
           <div className="text-sm font-medium text-[#506054]">
-            Mode: {executionMode}
+            Mode: {modeLabels[executionMode]}
           </div>
         </header>
 
@@ -196,7 +201,7 @@ export default function Home() {
                     checked={mode === value}
                     onChange={() => setMode(value)}
                   />
-                  {value}
+                  {modeLabels[value]}
                 </label>
               ))}
             </div>

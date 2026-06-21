@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchMetricsDirect } from "../../../lib/bufferDirect";
+import { fetchMetricsOrchestrated } from "../../../lib/orchestratedClient";
 import type { ExecutionMode } from "../../../lib/types";
 
 function isExecutionMode(value: string | null): value is ExecutionMode {
@@ -27,12 +28,12 @@ export async function GET(request: Request) {
     return jsonError("contentId is required.", 400);
   }
 
-  if (mode === "orchestrated") {
-    return jsonError("Orchestrated mode is not implemented yet.", 501);
-  }
-
   try {
-    const result = await fetchMetricsDirect(contentId.trim());
+    const normalizedContentId = contentId.trim();
+    const result =
+      mode === "direct"
+        ? await fetchMetricsDirect(normalizedContentId)
+        : await fetchMetricsOrchestrated(normalizedContentId);
 
     return NextResponse.json(result);
   } catch (error) {

@@ -32,6 +32,23 @@ type CreatePostInput = {
   source: string;
 };
 
+type BufferMetric = {
+  type: string;
+  name: string;
+  value: number;
+  unit?: string | null;
+};
+
+type GetPostMetricsData = {
+  post: {
+    id: string;
+    text?: string | null;
+    channelId?: string | null;
+    metrics?: BufferMetric[] | null;
+    metricsUpdatedAt?: string | null;
+  } | null;
+};
+
 const CREATE_POST_MUTATION = `
   mutation CreatePost($input: CreatePostInput!) {
     createPost(input: $input) {
@@ -54,6 +71,51 @@ const CREATE_POST_MUTATION = `
     }
   }
 `;
+
+const GET_POST_METRICS_QUERY = `
+  query GetPostMetrics($postId: PostId!) {
+    post(input: { id: $postId }) {
+      id
+      text
+      channelId
+      metrics {
+        type
+        name
+        value
+        unit
+      }
+      metricsUpdatedAt
+    }
+  }
+`;
+
+function normalizeMetrics(metrics: BufferMetric[]): MetricsResult["metrics"] {
+  return metrics.reduce<MetricsResult["metrics"]>((normalizedMetrics, metric) => {
+    const key = `${metric.type} ${metric.name}`.toLowerCase();
+
+    if (key.includes("impression")) {
+      normalizedMetrics.impressions = metric.value;
+    }
+
+    if (key.includes("click")) {
+      normalizedMetrics.clicks = metric.value;
+    }
+
+    if (key.includes("engagement")) {
+      normalizedMetrics.engagements = metric.value;
+    }
+
+    if (key.includes("like") || key.includes("reaction")) {
+      normalizedMetrics.likes = metric.value;
+    }
+
+    if (key.includes("comment")) {
+      normalizedMetrics.comments = metric.value;
+    }
+
+    return normalizedMetrics;
+  }, {});
+}
 
 export async function publishPostDirect(input: {
   title?: string;
@@ -117,14 +179,17 @@ export async function publishPostDirect(input: {
 export async function fetchMetricsDirect(
   contentId: string,
 ): Promise<MetricsResult> {
+  const data = await bufferGraphql<GetPostMetricsData>(GET_POST_METRICS_QUERY, {
+    postId: contentId,
+  });
+  const normalizedMetrics = normalizeMetrics(data.post?.metrics ?? []);
+
   return {
     contentId,
     fetchedAt: new Date().toISOString(),
     executionMode: "direct",
     provider: "buffer",
-    metrics: {},
-    raw: {
-      note: "Metrics endpoint not implemented yet. Buffer createPost integration is working.",
-    },
+    metrics: normalizedMetrics,
+    raw: data,
   };
 }

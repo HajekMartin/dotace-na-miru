@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Buffer Direct API Microsite",
-  description: "Candidate assignment microsite for Buffer Direct API posting.",
+  title: "Buffer Direct API + Make Orchestration",
+  description:
+    "Candidate assignment microsite for Buffer Direct API and Make orchestration.",
 };
 
 export default function RootLayout({

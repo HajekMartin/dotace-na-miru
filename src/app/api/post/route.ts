@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { publishPostDirect } from "../../../lib/bufferDirect";
+import { publishPostOrchestrated } from "../../../lib/orchestratedClient";
 import type { ExecutionMode, PostRequest } from "../../../lib/types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -51,15 +52,17 @@ export async function POST(request: Request) {
     text: text.trim(),
   };
 
-  if (postRequest.mode === "orchestrated") {
-    return jsonError("Orchestrated mode is not implemented yet.", 501);
-  }
-
   try {
-    const result = await publishPostDirect({
-      title: postRequest.title,
-      text: postRequest.text,
-    });
+    const result =
+      postRequest.mode === "direct"
+        ? await publishPostDirect({
+            title: postRequest.title,
+            text: postRequest.text,
+          })
+        : await publishPostOrchestrated({
+            title: postRequest.title,
+            text: postRequest.text,
+          });
 
     return NextResponse.json(result);
   } catch (error) {
