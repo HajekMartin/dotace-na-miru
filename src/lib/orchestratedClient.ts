@@ -15,6 +15,14 @@ function isPostResult(value: unknown): value is PostResult {
   );
 }
 
+function formatWebhookResponse(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
 function getStringProperty(
   value: Record<string, unknown>,
   property: string,
@@ -81,6 +89,63 @@ function rawPayloadForNestedPost(response: unknown): unknown {
   return isRecord(response.data) ? response.data : response;
 }
 
+function extractPostFromMetricsResponse(
+  response: unknown,
+): Record<string, unknown> | null {
+  if (!isRecord(response)) {
+    return null;
+  }
+
+  const dataPost = isRecord(response.data) ? response.data.post : null;
+
+  if (isRecord(dataPost)) {
+    return dataPost;
+  }
+
+  return isRecord(response.post) ? response.post : null;
+}
+
+function normalizeBufferMetrics(metrics: unknown): MetricsResult["metrics"] {
+  if (!Array.isArray(metrics)) {
+    return {};
+  }
+
+  return metrics.reduce<MetricsResult["metrics"]>(
+    (normalizedMetrics, metric) => {
+      if (!isRecord(metric) || typeof metric.value !== "number") {
+        return normalizedMetrics;
+      }
+
+      const type = typeof metric.type === "string" ? metric.type : "";
+      const name = typeof metric.name === "string" ? metric.name : "";
+      const key = `${type} ${name}`.toLowerCase();
+
+      if (key.includes("impression")) {
+        normalizedMetrics.impressions = metric.value;
+      }
+
+      if (key.includes("click")) {
+        normalizedMetrics.clicks = metric.value;
+      }
+
+      if (key.includes("engagement")) {
+        normalizedMetrics.engagements = metric.value;
+      }
+
+      if (key.includes("reaction") || key.includes("like")) {
+        normalizedMetrics.likes = metric.value;
+      }
+
+      if (key.includes("comment")) {
+        normalizedMetrics.comments = metric.value;
+      }
+
+      return normalizedMetrics;
+    },
+    {},
+  );
+}
+
 function isMetricsResult(value: unknown): value is MetricsResult {
   return (
     isRecord(value) &&
@@ -128,31 +193,14 @@ async function postWebhookJson(
   return parsedResponse;
 }
 
-async function postJson<TResponse>(
-  webhookUrl: string,
-  payload: Record<string, unknown>,
-  responseGuard: (value: unknown) => value is TResponse,
-  responseName: string,
-): Promise<TResponse> {
-  const parsedResponse = await postWebhookJson(webhookUrl, payload);
-
-  if (!responseGuard(parsedResponse)) {
-    throw new Error(
-      `Make orchestration webhook response did not match ${responseName}.`,
-    );
-  }
-
-  return parsedResponse;
-}
-
-export async function publishPostOrchestrated(input: {
+export async function publishPostViaMake(input: {
   title?: string;
   text: string;
 }): Promise<PostResult> {
-  const webhookUrl = process.env.ORCHESTRATED_POST_WEBHOOK_URL?.trim();
+  const webhookUrl = process.env.MAKE_POST_WEBHOOK_URL?.trim();
 
   if (!webhookUrl) {
-    throw new Error("ORCHESTRATED_POST_WEBHOOK_URL is not configured.");
+    throw new Error("MAKE_POST_WEBHOOK_URL is not configured.");
   }
 
   const parsedResponse = await postWebhookJson(webhookUrl, {
@@ -170,7 +218,7 @@ export async function publishPostOrchestrated(input: {
 
   if (!contentId) {
     throw new Error(
-      "Orchestrated webhook response did not contain a content ID.",
+      "Make orchestration webhook response did not contain a content ID.",
     );
   }
 
@@ -183,21 +231,39 @@ export async function publishPostOrchestrated(input: {
   };
 }
 
-export async function fetchMetricsOrchestrated(
+export async function fetchMetricsViaMake(
   contentId: string,
 ): Promise<MetricsResult> {
-  const webhookUrl = process.env.ORCHESTRATED_METRICS_WEBHOOK_URL?.trim();
+  const webhookUrl = process.env.MAKE_METRICS_WEBHOOK_URL?.trim();
 
   if (!webhookUrl) {
-    throw new Error("ORCHESTRATED_METRICS_WEBHOOK_URL is not configured.");
+    throw new Error("MAKE_METRICS_WEBHOOK_URL is not configured.");
   }
 
-  return postJson<MetricsResult>(
-    webhookUrl,
-    {
-      contentId,
-    },
-    isMetricsResult,
-    "MetricsResult",
-  );
+  const parsedResponse = await postWebhookJson(webhookUrl, {
+    contentId,
+  });
+
+  if (isMetricsResult(parsedResponse)) {
+    return parsedResponse;
+  }
+
+  const post = extractPostFromMetricsResponse(parsedResponse);
+
+  if (!post) {
+    throw new Error(
+      `Make orchestration webhook response did not match MetricsResult. Received: ${formatWebhookResponse(
+        parsedResponse,
+      )}`,
+    );
+  }
+
+  return {
+    contentId: getStringProperty(post, "id") ?? contentId,
+    fetchedAt: new Date().toISOString(),
+    executionMode: "orchestrated",
+    provider: "buffer",
+    metrics: normalizeBufferMetrics(post.metrics),
+    raw: parsedResponse,
+  };
 }

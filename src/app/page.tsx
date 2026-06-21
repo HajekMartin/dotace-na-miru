@@ -287,7 +287,7 @@ export default function Home() {
                   Execution mode
                 </div>
                 <div className="mt-1 min-h-6 font-mono text-sm text-[#252a27]">
-                  {executionMode}
+                  {modeLabels[executionMode]}
                 </div>
               </div>
             </div>

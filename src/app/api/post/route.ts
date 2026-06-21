@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { publishPostDirect } from "../../../lib/bufferDirect";
-import { publishPostOrchestrated } from "../../../lib/orchestratedClient";
+import { publishPostViaMake } from "../../../lib/orchestratedClient";
 import type { ExecutionMode, PostRequest } from "../../../lib/types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -35,7 +35,10 @@ export async function POST(request: Request) {
   const { mode, text, title } = body;
 
   if (!isExecutionMode(mode)) {
-    return jsonError("mode must be either direct or orchestrated.", 400);
+    return jsonError(
+      "mode must be either direct (Direct Buffer API) or orchestrated (Make orchestration).",
+      400,
+    );
   }
 
   if (typeof text !== "string" || text.trim().length === 0) {
@@ -59,7 +62,7 @@ export async function POST(request: Request) {
             title: postRequest.title,
             text: postRequest.text,
           })
-        : await publishPostOrchestrated({
+        : await publishPostViaMake({
             title: postRequest.title,
             text: postRequest.text,
           });

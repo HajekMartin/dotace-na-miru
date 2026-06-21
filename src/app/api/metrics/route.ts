@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchMetricsDirect } from "../../../lib/bufferDirect";
-import { fetchMetricsOrchestrated } from "../../../lib/orchestratedClient";
+import { fetchMetricsViaMake } from "../../../lib/orchestratedClient";
 import type { ExecutionMode } from "../../../lib/types";
 
 function isExecutionMode(value: string | null): value is ExecutionMode {
@@ -21,7 +21,10 @@ export async function GET(request: Request) {
   const contentId = searchParams.get("contentId");
 
   if (!isExecutionMode(mode)) {
-    return jsonError("mode must be either direct or orchestrated.", 400);
+    return jsonError(
+      "mode must be either direct (Direct Buffer API) or orchestrated (Make orchestration).",
+      400,
+    );
   }
 
   if (!contentId?.trim()) {
@@ -33,7 +36,7 @@ export async function GET(request: Request) {
     const result =
       mode === "direct"
         ? await fetchMetricsDirect(normalizedContentId)
-        : await fetchMetricsOrchestrated(normalizedContentId);
+        : await fetchMetricsViaMake(normalizedContentId);
 
     return NextResponse.json(result);
   } catch (error) {
