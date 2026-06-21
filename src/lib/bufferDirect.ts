@@ -1,33 +1,55 @@
 import { bufferGraphql } from "./bufferGraphql";
 import type { MetricsResult, PostResult } from "./types";
 
-type BufferIdea = {
+type BufferPost = {
   id?: string | null;
-  content?: {
-    title?: string | null;
-    text?: string | null;
-  } | null;
+  status?: string | null;
+  text?: string | null;
+  dueAt?: string | null;
+  shareMode?: string | null;
+  schedulingType?: string | null;
+  channelId?: string | null;
+  channelService?: string | null;
 };
 
-type CreateIdeaData = {
-  createIdea?: BufferIdea | null;
+type CreatePostPayload = {
+  __typename?: string;
+  message?: string;
+  post?: BufferPost | null;
 };
 
-const CREATE_IDEA_MUTATION = `
-  mutation CreateIdea($organizationId: ID!, $title: String!, $text: String!) {
-    createIdea(input: {
-      organizationId: $organizationId,
-      content: {
-        title: $title,
-        text: $text
-      }
-    }) {
-      ... on Idea {
-        id
-        content {
-          title
+type CreatePostData = {
+  createPost?: CreatePostPayload | null;
+};
+
+type CreatePostInput = {
+  channelId: string;
+  text: string;
+  schedulingType: "automatic";
+  dueAt: string;
+  assets: [];
+  mode: "customScheduled";
+  source: string;
+};
+
+const CREATE_POST_MUTATION = `
+  mutation CreatePost($input: CreatePostInput!) {
+    createPost(input: $input) {
+      __typename
+      ... on PostActionSuccess {
+        post {
+          id
+          status
           text
+          dueAt
+          shareMode
+          schedulingType
+          channelId
+          channelService
         }
+      }
+      ... on MutationError {
+        message
       }
     }
   }
@@ -38,27 +60,53 @@ export async function publishPostDirect(input: {
   text: string;
 }): Promise<PostResult> {
   const organizationId = process.env.BUFFER_ORGANIZATION_ID?.trim();
+  const channelId = process.env.BUFFER_CHANNEL_ID?.trim();
 
   if (!organizationId) {
     throw new Error("Missing BUFFER_ORGANIZATION_ID environment variable.");
   }
 
-  const title = input.title?.trim() || "New Idea from Marketing Microsite";
+  if (!channelId) {
+    throw new Error("Missing BUFFER_CHANNEL_ID environment variable.");
+  }
 
-  const data = await bufferGraphql<CreateIdeaData>(CREATE_IDEA_MUTATION, {
-    organizationId,
-    title,
+  const dueAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+  const createPostInput: CreatePostInput = {
+    channelId,
     text: input.text,
+    schedulingType: "automatic",
+    dueAt,
+    assets: [],
+    mode: "customScheduled",
+    source: "marketing-microsite",
+  };
+
+  const data = await bufferGraphql<CreatePostData>(CREATE_POST_MUTATION, {
+    input: createPostInput,
   });
 
-  const ideaId = data.createIdea?.id;
+  const payload = data.createPost;
 
-  if (!ideaId) {
-    throw new Error("Buffer createIdea response did not include an idea id.");
+  if (!payload) {
+    throw new Error("Buffer createPost response did not include a payload.");
+  }
+
+  if (payload.__typename !== "PostActionSuccess") {
+    throw new Error(
+      `Buffer createPost failed${
+        payload.message ? `: ${payload.message}` : ` with ${payload.__typename}`
+      }`,
+    );
+  }
+
+  const postId = payload.post?.id;
+
+  if (!postId) {
+    throw new Error("Buffer createPost response did not include a post id.");
   }
 
   return {
-    contentId: ideaId,
+    contentId: postId,
     createdAt: new Date().toISOString(),
     executionMode: "direct",
     provider: "buffer",
@@ -76,7 +124,7 @@ export async function fetchMetricsDirect(
     provider: "buffer",
     metrics: {},
     raw: {
-      note: "Metrics endpoint not implemented yet. Buffer createIdea integration is working.",
+      note: "Metrics endpoint not implemented yet. Buffer createPost integration is working.",
     },
   };
 }
