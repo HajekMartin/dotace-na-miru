@@ -131,8 +131,8 @@ This satisfies the orchestrated integration path requirement.
 │   ├── outputs.tf
 │   └── terraform.tfvars.example
 ├── make/
-│   ├── buffer-create-post.blueprint.json
-│   └── buffer-fetch-metrics.blueprint.json
+│   ├── Buffer Post.blueprint.json
+│   └── Buffer Fetch.blueprint.json
 ├── .env.example
 └── README.md
 ```
@@ -298,8 +298,28 @@ The orchestrated mode uses Make.com.
 Expected exported blueprints:
 
 ```text
-make/buffer-create-post.blueprint.json
-make/buffer-fetch-metrics.blueprint.json
+make/Buffer Post.blueprint.json
+make/Buffer Fetch.blueprint.json
+```
+
+The exported Make blueprints are included as orchestration configuration. They are intentionally sanitized and should not contain live credentials. In the exported files, runtime secrets are represented with placeholder/environment-variable-style values such as:
+
+```text
+BUFFER_ACCESS_TOKEN
+BUFFER_CHANNEL_ID
+```
+
+After importing the blueprints into Make, the following values must be configured again in the Make scenarios:
+
+- Buffer API token in the HTTP request `Authorization` header, for example `Bearer <real Buffer token>`
+- Buffer channel ID in the post creation scenario, if the blueprint contains the `BUFFER_CHANNEL_ID` placeholder
+- Make webhook URLs copied back into the application environment variables
+- webhook response mappings if Make changes module numbering during import
+
+The Make scenarios must be tested after import because Make does not preserve credentials between accounts/environments and module numbering can change after import. The expected runtime behavior is:
+
+```text
+Custom Webhook → HTTP request to Buffer GraphQL → Webhook Response
 ```
 
 ### Create Post Scenario
